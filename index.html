@@ -2,82 +2,159 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>RTS Country Manager - Dev Build</title>
+    <title>Global RTS Country Manager - World Map</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; }
-        #game-container { position: relative; width: 800px; height: 500px; background: #2c3e50; border: 4px solid #34495e; margin-top: 20px; overflow: hidden; }
-        .province { position: absolute; width: 100px; height: 100px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; border: 2px solid rgba(255,255,255,0.2); }
-        .province:hover { transform: scale(1.05); box-shadow: 0 0 15px white; }
-        .my-country { background: #27ae60; } /* สีประเทศมึง */
-        .enemy-country { background: #c0392b; } /* สีศัตรู */
-        .neutral { background: #7f8c8d; } /* พื้นที่ว่าง */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #111; color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
         
-        #hud { width: 800px; display: flex; justify-content: space-around; background: #333; padding: 10px; border-bottom: 2px solid #555; }
-        .stat { font-size: 18px; font-weight: bold; }
-        .log { width: 800px; height: 100px; background: #000; margin-top: 10px; padding: 10px; overflow-y: scroll; font-size: 12px; color: #0f0; border: 1px solid #444; }
+        /* HUD สวยๆ บนหัว */
+        #hud { width: 100%; display: flex; justify-content: space-around; background: rgba(0,0,0,0.8); padding: 15px; border-bottom: 2px solid #444; position: fixed; top: 0; z-index: 100; }
+        .stat { font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-val { color: #f1c40f; }
+
+        /* พื้นที่แสดงแผนที่ */
+        #map-container { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-top: 60px; background: #2c3e50;}
         
-        /* เส้นทางการเดินทัพ */
-        .troop-line { position: absolute; height: 4px; background: yellow; transform-origin: 0 50%; z-index: 10; pointer-events: none; transition: width 2s linear; }
+        /* สไตล์ของแผนที่ SVG */
+        svg { width: auto; height: 90%; max-width: 100%; }
+        path { fill: #7f8c8d; stroke: white; stroke-width: 0.5px; transition: fill 0.3s, stroke-width 0.2s; cursor: pointer; }
+        path:hover { stroke-width: 2px; fill: #95a5a6 !important; }
+
+        /* สีประเทศตามสถานะ */
+        .my-country { fill: #27ae60 !important; } /* สีประเทศเรา */
+        .enemy-country { fill: #c0392b !important; } /* สีประเทศอื่น */
+        .target-country { stroke: yellow !important; stroke-width: 3px !important;} /* ประเทศที่เลือก */
+
+        /* กล่องแสดงข้อมูลประเทศที่เลือก */
+        #country-panel { position: fixed; bottom: 120px; right: 20px; width: 250px; background: rgba(0,0,0,0.9); border: 2px solid #555; padding: 15px; border-radius: 10px; display: none; z-index: 90; }
+        #country-panel h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        #country-panel button { width: 100%; padding: 10px; background: #c0392b; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px;}
+        #country-panel button:hover { background: #e74c3c; }
+
+        /* Log */
+        .log { width: 100%; height: 100px; background: rgba(0,0,0,0.9); position: fixed; bottom: 0; left: 0; padding: 10px; overflow-y: scroll; font-size: 14px; color: #0f0; border-top: 2px solid #444; z-index: 80; box-sizing: border-box;}
     </style>
 </head>
 <body>
 
     <div id="hud">
-        <div class="stat">เงิน: $<span id="money">100</span></div>
-        <div class="stat">กำลังพล: <span id="manpower">500</span></div>
-        <div class="stat">พื้นที่ครอบครอง: <span id="territory">1</span></div>
+        <div class="stat">เงิน: <span class="stat-val" id="money">$100</span></div>
+        <div class="stat">กำลังพล: <span class="stat-val" id="manpower">500</span></div>
+        <div class="stat">ครองโลก: <span class="stat-val" id="territory">1</span> ประเทศ</div>
     </div>
 
-    <div id="game-container" id="map">
-        </div>
+    <div id="map-container">
+        <svg id="world-map" viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg">
+            <path id="thailand" title="Thailand" d="M 400 300 L 450 300 L 450 350 L 400 350 Z" />
+            <path id="myanmar" title="Myanmar" d="M 350 280 L 400 280 L 400 330 L 350 330 Z" />
+            <path id="laos" title="Laos" d="M 450 280 L 500 280 L 500 320 L 450 320 Z" />
+            <path id="cambodia" title="Cambodia" d="M 450 350 L 500 350 L 500 390 L 450 390 Z" />
+            <path id="malaysia" title="Malaysia" d="M 400 400 L 450 400 L 450 430 L 400 430 Z" />
+            <path id="usa" title="USA" d="M 100 150 L 250 150 L 250 250 L 100 250 Z" />
+            <path id="russia" title="Russia" d="M 500 50 L 900 50 L 900 150 L 500 150 Z" />
+            <path id="china" title="China" d="M 550 160 L 750 160 L 750 260 L 550 260 Z" />
+        </svg>
+    </div>
 
-    <div class="log" id="game-log">>> ยินดีต้อนรับท่านผู้นำ! คลิกพื้นที่สีแดงเพื่อเริ่มการบุก...</div>
+    <div id="country-panel">
+        <h3 id="panel-country-name">ชื่อประเทศ</h3>
+        <p>กำลังพล: <span id="panel-troops">0</span></p>
+        <p>สถานะ: <span id="panel-status">ปกติ</span></p>
+        <button id="attack-btn">บุกโจมตี!</button>
+    </div>
+
+    <div class="log" id="game-log">>> ยินดีต้อนรับท่านผู้นำ! คลิกประเทศสีแดงเพื่อเริ่มการบุก...</div>
 
     <script>
         // --- DATA ---
         let gameState = {
             money: 100,
             manpower: 500,
-            provinces: [
-                { id: 0, name: "ฐานทัพหลัก", x: 50, y: 200, owner: 'player', troops: 100 },
-                { id: 1, name: "เมืองหน้าด่าน", x: 250, y: 100, owner: 'enemy', troops: 50 },
-                { id: 2, name: "เขตเสบียง", x: 250, y: 300, owner: 'enemy', troops: 80 },
-                { id: 3, name: "เมืองหลวงศัตรู", x: 550, y: 200, owner: 'enemy', troops: 300 }
-            ]
+            playerCountry: 'thailand', // ประเทศเริ่มต้นของเรา
+            countries: {
+                'thailand': { name: "ประเทศไทย", owner: 'player', troops: 100, income: 5 },
+                'myanmar': { name: "เมียนมา", owner: 'enemy', troops: 50, income: 2 },
+                'laos': { name: "ลาว", owner: 'enemy', troops: 30, income: 1 },
+                'cambodia': { name: "กัมพูชา", owner: 'enemy', troops: 40, income: 1 },
+                'malaysia': { name: "มาเลเซีย", owner: 'enemy', troops: 60, income: 3 },
+                'usa': { name: "สหรัฐอเมริกา", owner: 'enemy', troops: 500, income: 20 },
+                'russia': { name: "รัสเซีย", owner: 'enemy', troops: 400, income: 15 },
+                'china': { name: "จีน", owner: 'enemy', troops: 450, income: 18 }
+            },
+            selectedCountryId: null
         };
 
-        const container = document.getElementById('game-container');
+        const map = document.getElementById('world-map');
+        const countryPanel = document.getElementById('country-panel');
         const log = document.getElementById('game-log');
 
         // --- CORE LOGIC ---
 
         function updateUI() {
-            document.getElementById('money').innerText = Math.floor(gameState.money);
+            document.getElementById('money').innerText = "$" + Math.floor(gameState.money);
             document.getElementById('manpower').innerText = gameState.manpower;
-            document.getElementById('territory').innerText = gameState.provinces.filter(p => p.owner === 'player').length;
+            
+            const playerCountries = Object.values(gameState.countries).filter(c => c.owner === 'player');
+            document.getElementById('territory').innerText = playerCountries.length;
+
             renderMap();
+            if(gameState.selectedCountryId) updatePanel(gameState.selectedCountryId);
         }
 
         function renderMap() {
-            container.innerHTML = '';
-            gameState.provinces.forEach(p => {
-                const div = document.createElement('div');
-                div.className = `province ${p.owner === 'player' ? 'my-country' : 'enemy-country'}`;
-                div.style.left = p.x + 'px';
-                div.style.top = p.y + 'px';
-                div.innerHTML = `<b>${p.name}</b><br>🛡️ ${p.troops}`;
-                div.onclick = () => handleAttack(p);
-                container.appendChild(div);
-            });
+            // เดินลูปผ่านทุกประเทศในข้อมูลเกม และอัปเดตสีใน SVG
+            for (const [id, data] of Object.entries(gameState.countries)) {
+                const countryPath = document.getElementById(id);
+                if (countryPath) {
+                    countryPath.className.baseVal = (data.owner === 'player' ? 'my-country' : 'enemy-country');
+                }
+            }
         }
 
-        function handleAttack(target) {
-            if (target.owner === 'player') {
-                addLog("นี่คือพื้นที่ของเราเอง!");
-                return;
+        // คลิกเลือกประเทศในแผนที่
+        map.addEventListener('click', (e) => {
+            if (e.target.tagName === 'path') {
+                const countryId = e.target.id;
+                selectCountry(countryId);
+            }
+        });
+
+        function selectCountry(countryId) {
+            // เอา Highlight ออกจากประเทศเก่า
+            if(gameState.selectedCountryId) {
+                document.getElementById(gameState.selectedCountryId).classList.remove('target-country');
             }
 
-            const attackCost = 50; // ใช้เงินบุก
+            gameState.selectedCountryId = countryId;
+            const data = gameState.countries[countryId];
+
+            // ไฮไลท์ประเทศใหม่
+            document.getElementById(countryId).classList.add('target-country');
+
+            // แสดง Panel ข้อมูล
+            countryPanel.style.display = 'block';
+            updatePanel(countryId);
+        }
+
+        function updatePanel(countryId) {
+            const data = gameState.countries[countryId];
+            document.getElementById('panel-country-name').innerText = data.name;
+            document.getElementById('panel-troops').innerText = data.troops;
+            
+            const attackBtn = document.getElementById('attack-btn');
+            if(data.owner === 'player') {
+                document.getElementById('panel-status').innerText = "อาณาเขตของเรา";
+                attackBtn.style.display = 'none'; // ห้ามบุกตัวเอง
+            } else {
+                document.getElementById('panel-status').innerText = "ศัตรู";
+                attackBtn.style.display = 'block';
+                attackBtn.onclick = () => handleAttack(countryId);
+            }
+        }
+
+        function handleAttack(targetId) {
+            const target = gameState.countries[targetId];
+            const attackCost = 50; // ราคาบุก
+
             if (gameState.money < attackCost) {
                 addLog("เงินไม่พอส่งกองทัพ!");
                 return;
@@ -85,28 +162,25 @@
 
             gameState.money -= attackCost;
             addLog(`กำลังส่งทัพไปบุก ${target.name}... (รอ 2 วินาที)`);
-
-            // จำลองการเดินทัพ (Visual)
-            const line = document.createElement('div');
-            line.className = 'troop-line';
-            line.style.left = (gameState.provinces[0].x + 50) + 'px';
-            line.style.top = (gameState.provinces[0].y + 50) + 'px';
-            container.appendChild(line);
+            countryPanel.style.display = 'none'; // ปิด Panel ระหว่างบุก
 
             // คำนวณผลการรบหลังจาก Delay (RTA Style)
             setTimeout(() => {
-                const playerPower = Math.floor(Math.random() * gameState.manpower * 0.5);
-                addLog(`เข้าปะทะ! พลังโจมตีของเรา: ${playerPower} VS ป้องกัน: ${target.troops}`);
+                // สูตรคำนวณง่ายๆ: พลังเรา = random(50% ของ manpower), สู้กับ ทหารศัตรู
+                const playerPower = Math.floor(Math.random() * gameState.manpower * 0.6);
+                addLog(`เข้าปะทะที่ ${target.name}! พลังโจมตีของเรา: ${playerPower} VS ป้องกัน: ${target.troops}`);
 
                 if (playerPower > target.troops) {
                     target.owner = 'player';
-                    target.troops = Math.floor(playerPower - target.troops);
-                    addLog(`ชัยชนะ! ยึดเมือง ${target.name} สำเร็จ!`);
+                    // ทหารที่เหลือจากการรบ กลายเป็นทหารเฝ้าเมือง
+                    target.troops = Math.floor((playerPower - target.troops) * 0.5); 
+                    addLog(`ชัยชนะ! ยึด ${target.name} สำเร็จ!`);
                 } else {
-                    gameState.manpower -= 50;
+                    // เสียกำลังพลบางส่วนถ้าแพ้
+                    gameState.manpower -= Math.floor(target.troops * 0.3);
                     addLog(`พ่ายแพ้! สูญเสียกำลังพลในสมรภูมิ...`);
                 }
-                line.remove();
+                gameState.selectedCountryId = null; // เลิกเลือก
                 updateUI();
             }, 2000);
         }
@@ -117,14 +191,15 @@
 
         // --- GAME LOOP (Tick System) ---
         setInterval(() => {
-            // ทุกวินาที เงินจะเพิ่มตามจำนวนเมืองที่ครอง
-            const playerProvinces = gameState.provinces.filter(p => p.owner === 'player').length;
-            gameState.money += playerProvinces * 2;
-            gameState.manpower += playerProvinces * 5;
-
-            // ศัตรูก็สะสมกำลังเหมือนกัน (AI เบื้องต้น)
-            gameState.provinces.filter(p => p.owner === 'enemy').forEach(p => {
-                p.troops += 1; 
+            // ทุกวินาที เงินและคนจะเพิ่มตามประเทศที่ครอง
+            Object.values(gameState.countries).forEach(c => {
+                if(c.owner === 'player') {
+                    gameState.money += c.income;
+                    gameState.manpower += 2;
+                } else {
+                    // AI ก็ปั๊มทหารเรื่อยๆ
+                    c.troops += 1;
+                }
             });
 
             updateUI();
